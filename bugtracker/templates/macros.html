@@ -1,0 +1,72 @@
+{% macro severity_badge(sev) -%}
+<span class="badge sev sev-{{ sev }}">{{ SEVERITY_LABELS.get(sev, sev) }}</span>
+{%- endmacro %}
+
+{% macro status_badge(status) -%}
+<span class="badge status status-{{ status }}">{{ STATUS_LABELS.get(status, status) }}</span>
+{%- endmacro %}
+
+{% macro person(user, empty='–') -%}
+{% if user %}<span class="d-inline-flex align-items-center gap-1"><span class="avatar avatar-sm">{{ user.initials }}</span>{{ user.name }}</span>{% else %}<span class="text-body-secondary">{{ empty }}</span>{% endif %}
+{%- endmacro %}
+
+{% macro csrf() -%}
+<input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+{%- endmacro %}
+
+{% macro options(items, selected, empty_label) -%}
+<option value="">{{ empty_label }}</option>
+{% for item in items %}
+<option value="{{ item.id }}" {{ 'selected' if selected == item.id|string }}>{{ item.name }}{% if item.archived %} (archived){% endif %}</option>
+{% endfor %}
+{%- endmacro %}
+
+{% macro sort_header(label, key, filters) -%}
+{% set active = filters.sort == key %}
+{% set next_dir = 'asc' if active and filters.dir == 'desc' else 'desc' %}
+<a class="sort-link {{ 'active' if active }}" href="{{ url_with(sort=key, dir=next_dir, page=None) }}">
+    {{ label }}{% if active %} <i class="bi bi-caret-{{ 'up' if filters.dir == 'asc' else 'down' }}-fill"></i>{% endif %}
+</a>
+{%- endmacro %}
+
+{% macro pager(pagination) -%}
+{% if pagination.pages > 1 %}
+<nav aria-label="Pages">
+    <ul class="pagination pagination-sm justify-content-center mb-0">
+        <li class="page-item {{ 'disabled' if not pagination.has_prev }}">
+            <a class="page-link" href="{{ url_with(page=pagination.prev_num) }}">&laquo;</a>
+        </li>
+        {% for p in pagination.iter_pages(left_edge=1, right_edge=1, left_current=2, right_current=2) %}
+            {% if p %}
+            <li class="page-item {{ 'active' if p == pagination.page }}"><a class="page-link" href="{{ url_with(page=p) }}">{{ p }}</a></li>
+            {% else %}
+            <li class="page-item disabled"><span class="page-link">…</span></li>
+            {% endif %}
+        {% endfor %}
+        <li class="page-item {{ 'disabled' if not pagination.has_next }}">
+            <a class="page-link" href="{{ url_with(page=pagination.next_num) }}">&raquo;</a>
+        </li>
+    </ul>
+</nav>
+{% endif %}
+{%- endmacro %}
+
+{% macro event_text(e, with_bug=false) -%}
+{% set bug_link %}{% if with_bug and e.bug %}<a href="{{ url_for('bugs.detail', bug_id=e.bug_id) }}">#{{ e.bug_id }} {{ e.bug.title|truncate(48) }}</a>{% else %}this bug{% endif %}{% endset %}
+<strong>{{ e.actor.name if e.actor else 'Someone' }}</strong>
+{% if e.kind == 'created' -%}
+reported {{ bug_link }}
+{%- elif e.kind == 'changed' and e.field == 'description' -%}
+edited the description{% if with_bug %} of {{ bug_link }}{% endif %}
+{%- elif e.kind == 'changed' -%}
+changed {{ e.field }}{% if with_bug %} of {{ bug_link }}{% endif %}:
+<span class="text-body-secondary text-decoration-line-through">{{ e.old_value or 'none' }}</span>
+<i class="bi bi-arrow-right small"></i> {{ e.new_value or 'none' }}
+{%- elif e.kind == 'attachment_added' -%}
+attached <em>{{ e.new_value }}</em>{% if with_bug %} to {{ bug_link }}{% endif %}
+{%- elif e.kind == 'attachment_removed' -%}
+removed <em>{{ e.old_value }}</em>{% if with_bug %} from {{ bug_link }}{% endif %}
+{%- else -%}
+updated {{ bug_link }}
+{%- endif %}
+{%- endmacro %}

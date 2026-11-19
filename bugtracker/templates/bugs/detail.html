@@ -1,0 +1,194 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, severity_badge, status_badge, person, event_text %}
+{% block title %}#{{ bug.id }} {{ bug.title }}{% endblock %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-2">
+    <nav aria-label="breadcrumb"><ol class="breadcrumb small mb-0">
+        <li class="breadcrumb-item"><a href="{{ url_for('bugs.list') }}">Bugs</a></li>
+        <li class="breadcrumb-item active">#{{ bug.id }}</li>
+    </ol></nav>
+    <div class="btn-group btn-group-sm">
+        <a class="btn btn-outline-secondary {{ 'disabled' if not prev_bug }}" href="{{ url_for('bugs.detail', bug_id=prev_bug.id) if prev_bug else '#' }}" title="Previous bug" aria-label="Previous bug"><i class="bi bi-chevron-left"></i></a>
+        <a class="btn btn-outline-secondary {{ 'disabled' if not next_bug }}" href="{{ url_for('bugs.detail', bug_id=next_bug.id) if next_bug else '#' }}" title="Next bug" aria-label="Next bug"><i class="bi bi-chevron-right"></i></a>
+    </div>
+</div>
+
+<div class="d-flex flex-wrap justify-content-between align-items-start gap-3 mb-4">
+    <div>
+        <h1 class="h3 mb-2"><span class="text-body-secondary">#{{ bug.id }}</span> {{ bug.title }}</h1>
+        <div class="d-flex flex-wrap gap-2 align-items-center small">
+            {{ severity_badge(bug.severity) }} {{ status_badge(bug.status) }}
+            <span class="text-body-secondary">reported {{ bug.created_at|localtime('relative') }}{% if bug.reporter %} by {{ bug.reporter.name }}{% endif %}</span>
+        </div>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="{{ url_for('bugs.edit', bug_id=bug.id) }}" class="btn btn-sm btn-outline-primary"><i class="bi bi-pencil"></i> Edit</a>
+        <div class="dropdown">
+            <button class="btn btn-sm btn-outline-secondary dropdown-toggle" data-bs-toggle="dropdown" aria-expanded="false">More</button>
+            <ul class="dropdown-menu dropdown-menu-end">
+                <li><a class="dropdown-item" href="{{ url_for('bugs.new', like=bug.id) }}"><i class="bi bi-files"></i> Report another on this setup</a></li>
+                <li><button class="dropdown-item" type="button" data-copy="{{ request.url }}"><i class="bi bi-link-45deg"></i> Copy link</button></li>
+                {% if can_delete %}
+                <li><hr class="dropdown-divider"></li>
+                <li>
+                    <form method="post" action="{{ url_for('bugs.delete', bug_id=bug.id) }}" data-confirm="Delete bug #{{ bug.id }} and its attachments? This can't be undone.">
+                        {{ csrf() }}
+                        <button class="dropdown-item text-danger"><i class="bi bi-trash"></i> Delete bug</button>
+                    </form>
+                </li>
+                {% endif %}
+            </ul>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-8 order-2 order-lg-1">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title">Description</h2>
+                {% if bug.description %}
+                <div class="description">{{ bug.description }}</div>
+                {% else %}
+                <p class="text-body-secondary mb-0">No description. <a href="{{ url_for('bugs.edit', bug_id=bug.id) }}">Add one</a>.</p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="card mb-4" id="attachments">
+            <div class="card-body">
+                <h2 class="h6 card-title mb-3">Attachments <span class="text-body-secondary fw-normal">{{ bug.attachments|length }}</span></h2>
+                {% if bug.attachments %}
+                <div class="attachment-grid mb-3">
+                    {% for att in bug.attachments %}
+                    {% set href = url_for('bugs.attachment', att_id=att.id, name=att.original_filename) %}
+                    <div class="attachment">
+                        <a href="{{ href }}" target="_blank" rel="noopener" class="attachment-preview">
+                            {% if att.is_image %}
+                            <img src="{{ href }}" alt="{{ att.original_filename }}" loading="lazy">
+                            {% elif att.is_video %}
+                            <i class="bi bi-camera-video"></i>
+                            {% else %}
+                            <i class="bi bi-file-earmark-text"></i>
+                            {% endif %}
+                        </a>
+                        <div class="attachment-meta">
+                            <div class="text-truncate small" title="{{ att.original_filename }}">{{ att.original_filename }}</div>
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span class="text-body-secondary x-small">{{ att.size_bytes|filesize }}</span>
+                                {% if current_user.is_admin or att.uploaded_by_id == current_user.id or bug.reported_by_id == current_user.id %}
+                                <form method="post" action="{{ url_for('bugs.delete_attachment', att_id=att.id) }}" data-confirm="Remove {{ att.original_filename }}?">
+                                    {{ csrf() }}
+                                    <button class="btn btn-link btn-sm text-danger p-0" title="Remove" aria-label="Remove {{ att.original_filename }}"><i class="bi bi-x-lg"></i></button>
+                                </form>
+                                {% endif %}
+                            </div>
+                        </div>
+                    </div>
+                    {% endfor %}
+                </div>
+                {% endif %}
+                <form method="post" action="{{ url_for('bugs.attach', bug_id=bug.id) }}" enctype="multipart/form-data" class="dropzone" data-dropzone>
+                    {{ csrf() }}
+                    <input type="file" name="files" id="attach-files" class="form-control form-control-sm" multiple required>
+                    <button type="submit" class="btn btn-sm btn-outline-primary text-nowrap"><i class="bi bi-paperclip"></i> Attach</button>
+                </form>
+                <div class="form-text">Drop files here or paste a screenshot. Allowed: {{ allowed_extensions|join(', ') }}.</div>
+            </div>
+        </div>
+
+        <div class="card" id="activity">
+            <div class="card-body">
+                <h2 class="h6 card-title mb-3">Activity</h2>
+                <ul class="timeline list-unstyled mb-4">
+                    {% for kind, when, item in timeline %}
+                    {% if kind == 'comment' %}
+                    <li class="timeline-comment">
+                        <div class="d-flex justify-content-between align-items-center mb-1">
+                            <span>{{ person(item.author, 'Deleted user') }} <span class="text-body-secondary small">{{ when|localtime('relative') }}</span></span>
+                            {% if current_user.is_admin or item.author_id == current_user.id %}
+                            <form method="post" action="{{ url_for('bugs.delete_comment', comment_id=item.id) }}" data-confirm="Delete this comment?">
+                                {{ csrf() }}
+                                <button class="btn btn-link btn-sm text-body-secondary p-0" title="Delete comment" aria-label="Delete comment"><i class="bi bi-trash"></i></button>
+                            </form>
+                            {% endif %}
+                        </div>
+                        <div class="description">{{ item.body }}</div>
+                    </li>
+                    {% else %}
+                    <li class="timeline-event small">
+                        {{ event_text(item) }} <span class="text-body-secondary">· {{ when|localtime('relative') }}</span>
+                    </li>
+                    {% endif %}
+                    {% else %}
+                    <li class="text-body-secondary small">No activity yet.</li>
+                    {% endfor %}
+                </ul>
+                <form method="post" action="{{ url_for('bugs.add_comment', bug_id=bug.id) }}">
+                    {{ csrf() }}
+                    <label for="comment-body" class="form-label small">Add a comment</label>
+                    <textarea class="form-control mb-2" id="comment-body" name="body" rows="3" required placeholder="Extra details, reproduction notes, a question for the reporter…"></textarea>
+                    <button class="btn btn-sm btn-primary">Comment</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-4 order-1 order-lg-2">
+        <div class="card mb-4">
+            <div class="card-body">
+                <form method="post" action="{{ url_for('bugs.quick_update', bug_id=bug.id) }}" class="mb-3">
+                    {{ csrf() }}
+                    <label class="form-label small text-body-secondary mb-1" for="quick-status">Status</label>
+                    <div class="input-group input-group-sm">
+                        <select class="form-select" id="quick-status" name="status">
+                            {% for s in STATUSES %}<option value="{{ s }}" {{ 'selected' if bug.status == s }}>{{ STATUS_LABELS[s] }}</option>{% endfor %}
+                        </select>
+                        <button class="btn btn-outline-primary">Set</button>
+                    </div>
+                </form>
+                <form method="post" action="{{ url_for('bugs.quick_update', bug_id=bug.id) }}" class="mb-3">
+                    {{ csrf() }}
+                    <label class="form-label small text-body-secondary mb-1" for="quick-assignee">Assignee</label>
+                    <div class="input-group input-group-sm">
+                        <select class="form-select" id="quick-assignee" name="assigned_to">
+                            <option value="">Unassigned</option>
+                            {% for t in testers %}<option value="{{ t.id }}" {{ 'selected' if bug.assigned_to_id == t.id }}>{{ t.name }}</option>{% endfor %}
+                        </select>
+                        <button class="btn btn-outline-primary">Set</button>
+                    </div>
+                    {% if bug.assigned_to_id != current_user.id %}
+                    <button class="btn btn-link btn-sm p-0 mt-1" name="assigned_to" value="me">Assign to me</button>
+                    {% endif %}
+                </form>
+                {% if bug.is_done or bug.fixed_in_build %}
+                <form method="post" action="{{ url_for('bugs.quick_update', bug_id=bug.id) }}" class="mb-3">
+                    {{ csrf() }}
+                    <label class="form-label small text-body-secondary mb-1" for="quick-fixed">Fixed in build</label>
+                    <div class="input-group input-group-sm">
+                        <select class="form-select" id="quick-fixed" name="fixed_in_build">
+                            <option value="">–</option>
+                            {% for b in sw_builds %}<option value="{{ b.id }}" {{ 'selected' if bug.fixed_in_build_id == b.id }}>{{ b.name }}</option>{% endfor %}
+                            {% if bug.fixed_in_build and bug.fixed_in_build.archived %}<option value="{{ bug.fixed_in_build.id }}" selected>{{ bug.fixed_in_build.name }} (archived)</option>{% endif %}
+                        </select>
+                        <button class="btn btn-outline-primary">Set</button>
+                    </div>
+                </form>
+                {% endif %}
+
+                <dl class="facts mb-0">
+                    <dt>Reported by</dt><dd>{{ person(bug.reporter) }}</dd>
+                    <dt>Device</dt><dd>{{ bug.device.name if bug.device else '–' }}</dd>
+                    <dt>SW build</dt><dd>{{ bug.sw_build.name if bug.sw_build else '–' }}</dd>
+                    {% if not (bug.is_done or bug.fixed_in_build) %}<dt>Fixed in</dt><dd>–</dd>{% endif %}
+                    <dt>Mode</dt><dd>{{ bug.mode.name if bug.mode else '–' }}</dd>
+                    <dt>TG</dt><dd>{{ bug.tg or '–' }}</dd>
+                    <dt>Created</dt><dd>{{ bug.created_at|localtime }}</dd>
+                    <dt>Updated</dt><dd>{{ bug.updated_at|localtime }}</dd>
+                    {% if bug.resolved_at %}<dt>Resolved</dt><dd>{{ bug.resolved_at|localtime }}</dd>{% endif %}
+                </dl>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

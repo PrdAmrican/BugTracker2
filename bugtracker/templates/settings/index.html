@@ -1,0 +1,67 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Settings{% endblock %}
+{% block content %}
+<h1 class="h3 mb-1">Settings</h1>
+<p class="text-body-secondary mb-4">Manage the values offered in the bug form's dropdowns. Archive old builds to hide them from new reports while keeping history intact.</p>
+
+<ul class="nav nav-tabs mb-3">
+    {% for key, info in lookups.items() %}
+    <li class="nav-item"><a class="nav-link {{ 'active' if key == kind }}" href="{{ url_for('settings.index', kind=key) }}">{{ info.label }}</a></li>
+    {% endfor %}
+</ul>
+
+<div class="row g-4">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="table-responsive">
+                <table class="table align-middle mb-0">
+                    <thead><tr><th>Name</th><th class="text-end">Bugs</th><th class="text-end">Actions</th></tr></thead>
+                    <tbody>
+                        {% for item in items %}
+                        <tr class="{{ 'text-body-secondary' if item.archived }}">
+                            <td>
+                                <form method="post" action="{{ url_for('settings.rename', kind=kind, item_id=item.id) }}" class="d-flex gap-1 rename-form">
+                                    {{ csrf() }}
+                                    <input class="form-control form-control-sm" name="name" value="{{ item.name }}" aria-label="Name" required maxlength="120">
+                                    <button class="btn btn-sm btn-outline-secondary" title="Save name" aria-label="Save name"><i class="bi bi-check-lg"></i></button>
+                                </form>
+                                {% if item.archived %}<span class="badge text-bg-secondary mt-1">archived</span>{% endif %}
+                            </td>
+                            <td class="text-end">
+                                {% set n = usage.get(item.id, 0) %}
+                                {% if n %}<a href="{{ url_for('bugs.list', **{('build' if kind == 'sw_builds' else kind[:-1]): item.id}) }}">{{ n }}</a>{% else %}0{% endif %}
+                            </td>
+                            <td class="text-end text-nowrap">
+                                <form method="post" action="{{ url_for('settings.toggle_archive', kind=kind, item_id=item.id) }}" class="d-inline">
+                                    {{ csrf() }}
+                                    <button class="btn btn-sm btn-outline-secondary">{{ 'Restore' if item.archived else 'Archive' }}</button>
+                                </form>
+                                {% if not usage.get(item.id) %}
+                                <form method="post" action="{{ url_for('settings.delete', kind=kind, item_id=item.id) }}" class="d-inline" data-confirm="Delete “{{ item.name }}”?">
+                                    {{ csrf() }}
+                                    <button class="btn btn-sm btn-outline-danger" title="Delete" aria-label="Delete {{ item.name }}"><i class="bi bi-trash"></i></button>
+                                </form>
+                                {% endif %}
+                            </td>
+                        </tr>
+                        {% else %}
+                        <tr><td colspan="3" class="text-center text-body-secondary py-4">No {{ lookups[kind].label|lower }} yet.</td></tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <form method="post" action="{{ url_for('settings.add', kind=kind) }}" class="card">
+            <div class="card-body">
+                {{ csrf() }}
+                <h2 class="h6 card-title">Add {{ lookups[kind].label|lower }}</h2>
+                <textarea class="form-control mb-2" name="names" rows="5" required placeholder="One per line"></textarea>
+                <button class="btn btn-primary w-100">Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

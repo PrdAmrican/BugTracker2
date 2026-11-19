@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Backup &amp; restore{% endblock %}
+{% block content %}
+<h1 class="h3 mb-4">Backup &amp; restore</h1>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <div class="card h-100">
+            <div class="card-body">
+                <h2 class="h6 card-title"><i class="bi bi-box-arrow-up"></i> Export</h2>
+                <div class="list-group list-group-flush">
+                    <a class="list-group-item list-group-item-action px-0" href="{{ url_for('backup.export_full') }}">
+                        <div class="fw-semibold"><i class="bi bi-file-earmark-zip"></i> Full backup (ZIP) <span class="badge text-bg-success ms-1">recommended</span></div>
+                        <div class="small text-body-secondary">All data plus every attachment file. Restores everything on a new server.</div>
+                    </a>
+                    <a class="list-group-item list-group-item-action px-0" href="{{ url_for('backup.export_json') }}">
+                        <div class="fw-semibold"><i class="bi bi-filetype-json"></i> Data only (JSON)</div>
+                        <div class="small text-body-secondary">All data without attachment files. Small and re-importable.</div>
+                    </a>
+                    <a class="list-group-item list-group-item-action px-0" href="{{ url_for('backup.export_csv') }}">
+                        <div class="fw-semibold"><i class="bi bi-file-earmark-spreadsheet"></i> Spreadsheets (CSV ZIP)</div>
+                        <div class="small text-body-secondary">One CSV per table for Excel or Google Sheets. Read-only: can't be imported.</div>
+                    </a>
+                    {% if has_sqlite %}
+                    <a class="list-group-item list-group-item-action px-0" href="{{ url_for('backup.export_sqlite') }}">
+                        <div class="fw-semibold"><i class="bi bi-database-down"></i> SQLite database</div>
+                        <div class="small text-body-secondary">A consistent copy of <code>bugs.db</code>, safe to take while the app is running.</div>
+                    </a>
+                    {% endif %}
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-6">
+        <div class="card h-100 border-warning-subtle">
+            <div class="card-body">
+                <h2 class="h6 card-title"><i class="bi bi-box-arrow-in-down"></i> Restore</h2>
+                <p class="small text-body-secondary">Upload a full backup ZIP or a JSON backup (from v2 or v1). The file is checked first; if anything is wrong, nothing changes.</p>
+                <div class="alert alert-warning small">
+                    <i class="bi bi-exclamation-triangle"></i>
+                    Restoring <strong>replaces all current data</strong>. A snapshot of the current data is saved automatically before the restore.
+                </div>
+                <form method="post" action="{{ url_for('backup.import_backup') }}" enctype="multipart/form-data">
+                    {{ csrf() }}
+                    <div class="mb-3">
+                        <input type="file" name="file" class="form-control" accept=".json,.zip" required aria-label="Backup file">
+                    </div>
+                    <div class="mb-3">
+                        <label for="confirm" class="form-label small">Type <strong>REPLACE</strong> to confirm</label>
+                        <input class="form-control" id="confirm" name="confirm" required pattern="REPLACE" autocomplete="off">
+                    </div>
+                    <button class="btn btn-warning w-100"><i class="bi bi-upload"></i> Restore backup</button>
+                </form>
+            </div>
+        </div>
+    </div>
+
+    {% if snapshots %}
+    <div class="col-12">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6 card-title">Automatic snapshots</h2>
+                <p class="small text-body-secondary">Saved before each restore in the <code>backups/</code> folder (newest first).</p>
+                <ul class="list-unstyled small mb-0">
+                    {% for name in snapshots %}
+                    <li><a href="{{ url_for('backup.download_snapshot', name=name) }}"><i class="bi bi-filetype-json"></i> {{ name }}</a></li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+</div>
+{% endblock %}

@@ -1,0 +1,69 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Edit {{ user.name }}{% endblock %}
+{% block content %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{{ url_for('people.index') }}">Testers</a></li>
+    <li class="breadcrumb-item active">{{ user.name }}</li>
+</ol></nav>
+<h1 class="h3 mb-4">Edit {{ user.name }}</h1>
+
+<div class="row g-4">
+    <div class="col-lg-6">
+        <form method="post" class="card">
+            <div class="card-body">
+                {{ csrf() }}
+                <div class="mb-3">
+                    <label for="name" class="form-label">Name</label>
+                    <input class="form-control" id="name" name="name" value="{{ request.form.name or user.name }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ request.form.email or user.email }}" required>
+                </div>
+                <div class="mb-3">
+                    <label for="role" class="form-label">Role</label>
+                    <select class="form-select" id="role" name="role">
+                        {% for r in roles %}<option value="{{ r }}" {{ 'selected' if user.role == r }}>{{ r|title }}</option>{% endfor %}
+                    </select>
+                </div>
+                <div class="form-check form-switch mb-3">
+                    <input class="form-check-input" type="checkbox" role="switch" id="active" name="active" value="1" {{ 'checked' if user.active }}>
+                    <label class="form-check-label" for="active">Active (inactive testers can't sign in)</label>
+                </div>
+                <hr>
+                <div class="mb-3">
+                    <label for="password" class="form-label">{{ 'Reset password' if user.password_hash else 'Give a login: set a password' }}</label>
+                    <input type="text" class="form-control" id="password" name="password" minlength="{{ min_length }}" autocomplete="off" placeholder="Leave blank to keep {{ 'the current password' if user.password_hash else 'no login' }}">
+                </div>
+                {% if user.password_hash and user.id != current_user.id %}
+                <div class="form-check mb-3">
+                    <input class="form-check-input" type="checkbox" id="remove_login" name="remove_login" value="1">
+                    <label class="form-check-label" for="remove_login">Remove login (keep as a tester record only)</label>
+                </div>
+                {% endif %}
+                <div class="d-flex gap-2">
+                    <button class="btn btn-primary">Save</button>
+                    <a class="btn btn-outline-secondary" href="{{ url_for('people.index') }}">Cancel</a>
+                </div>
+            </div>
+        </form>
+    </div>
+    <div class="col-lg-6">
+        <div class="card border-danger-subtle">
+            <div class="card-body">
+                <h2 class="h6 card-title">Delete tester</h2>
+                <p class="small text-body-secondary">Bugs, comments and files from {{ user.name }} are kept; they'll just no longer be linked to anyone. To stop someone signing in but keep their name on bugs, switch them to inactive instead.</p>
+                {% if user.id == current_user.id %}
+                <p class="small mb-0">You can't delete your own account.</p>
+                {% else %}
+                <form method="post" action="{{ url_for('people.delete', user_id=user.id) }}" data-confirm="Delete {{ user.name }}?">
+                    {{ csrf() }}
+                    <button class="btn btn-sm btn-outline-danger"><i class="bi bi-trash"></i> Delete {{ user.name }}</button>
+                </form>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

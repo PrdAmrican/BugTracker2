@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="en" data-bs-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="csrf-token" content="{{ csrf_token() }}">
+    <title>{% block title %}Bug Tracker{% endblock %} · Bug Tracker</title>
+    <script>
+        // Apply the saved theme before first paint to avoid a flash.
+        (function () {
+            var t = null;
+            try { t = localStorage.getItem('bt-theme'); } catch (e) {}
+            if (!t) t = window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-bs-theme', t);
+        })();
+    </script>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+    <link href="{{ url_for('static', filename='style.css') }}?v={{ APP_VERSION }}" rel="stylesheet">
+</head>
+<body>
+{% set ep = request.endpoint or '' %}
+{% if current_user.is_authenticated %}
+<nav class="navbar navbar-expand-lg app-nav mb-4">
+    <div class="container-xl">
+        <a class="navbar-brand fw-semibold" href="{{ url_for('dashboard.index') }}">
+            <i class="bi bi-bug-fill text-danger"></i> Bug Tracker
+        </a>
+        <button class="navbar-toggler" type="button" data-bs-toggle="collapse" data-bs-target="#nav" aria-label="Menu">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="nav">
+            <ul class="navbar-nav me-auto">
+                <li class="nav-item"><a class="nav-link {{ 'active' if ep.startswith('dashboard') }}" href="{{ url_for('dashboard.index') }}">Dashboard</a></li>
+                <li class="nav-item"><a class="nav-link {{ 'active' if ep in ('bugs.list', 'bugs.detail', 'bugs.edit') }}" href="{{ url_for('bugs.list', status='active') }}">Bugs</a></li>
+                <li class="nav-item"><a class="nav-link {{ 'active' if ep.startswith('people') }}" href="{{ url_for('people.index') }}">Testers</a></li>
+                {% if current_user.is_admin %}
+                <li class="nav-item"><a class="nav-link {{ 'active' if ep.startswith('settings') }}" href="{{ url_for('settings.index') }}">Settings</a></li>
+                <li class="nav-item"><a class="nav-link {{ 'active' if ep.startswith('backup') }}" href="{{ url_for('backup.index') }}">Backup</a></li>
+                {% endif %}
+                <li class="nav-item"><a class="nav-link {{ 'active' if ep.startswith('about') }}" href="{{ url_for('about.index') }}">About</a></li>
+            </ul>
+            <form class="d-flex me-lg-3 my-2 my-lg-0" action="{{ url_for('bugs.list') }}" role="search">
+                <input class="form-control form-control-sm" type="search" name="q" placeholder="Search bugs or #id" aria-label="Search bugs" value="{{ request.args.get('q', '') if ep == 'bugs.list' else '' }}">
+            </form>
+            <a class="btn btn-sm btn-danger me-lg-2 mb-2 mb-lg-0" href="{{ url_for('bugs.new') }}"><i class="bi bi-plus-lg"></i> Report bug</a>
+            <div class="dropdown">
+                <button class="btn btn-sm btn-link nav-link dropdown-toggle d-flex align-items-center gap-2" data-bs-toggle="dropdown" aria-expanded="false">
+                    <span class="avatar">{{ current_user.initials }}</span>
+                    <span class="d-lg-none d-xl-inline">{{ current_user.name }}</span>
+                </button>
+                <ul class="dropdown-menu dropdown-menu-end">
+                    <li><span class="dropdown-item-text small text-body-secondary">{{ current_user.email }}{% if current_user.is_admin %} · admin{% endif %}</span></li>
+                    <li><a class="dropdown-item" href="{{ url_for('bugs.list', assignee='me', status='active') }}"><i class="bi bi-person-check"></i> My bugs</a></li>
+                    <li><a class="dropdown-item" href="{{ url_for('auth.account') }}"><i class="bi bi-gear"></i> Account</a></li>
+                    <li><button class="dropdown-item" type="button" data-theme-toggle><i class="bi bi-circle-half"></i> Toggle dark mode</button></li>
+                    <li><hr class="dropdown-divider"></li>
+                    <li>
+                        <form method="post" action="{{ url_for('auth.logout') }}">
+                            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+                            <button class="dropdown-item"><i class="bi bi-box-arrow-right"></i> Sign out</button>
+                        </form>
+                    </li>
+                </ul>
+            </div>
+        </div>
+    </div>
+</nav>
+{% endif %}
+
+<main class="container-xl mb-5">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+    {% for category, message in messages %}
+    <div class="alert alert-{{ category }} alert-dismissible fade show" role="alert">
+        {{ message }}
+        <button type="button" class="btn-close" data-bs-dismiss="alert" aria-label="Close"></button>
+    </div>
+    {% endfor %}
+    {% endwith %}
+
+    {% block content %}{% endblock %}
+</main>
+
+<footer class="container-xl text-body-secondary small pb-4 d-flex flex-wrap gap-2">
+    <span>Bug Tracker v{{ APP_VERSION }}</span>
+    <span>&middot;</span>
+    <span>&copy; 2026 <a class="link-secondary" href="{{ APP_AUTHOR_URL }}" target="_blank" rel="noopener">{{ APP_AUTHOR }}</a></span>
+    <span>&middot;</span>
+    <span>Free software under the <a class="link-secondary" href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener">GNU AGPL v3</a></span>
+    <span>&middot;</span>
+    <a class="link-secondary" href="{{ SOURCE_URL }}" target="_blank" rel="noopener">Source code</a>
+    <span>&middot;</span>
+    <a class="link-secondary" href="{{ url_for('about.index') }}">About</a>
+</footer>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+<script src="{{ url_for('static', filename='app.js') }}?v={{ APP_VERSION }}"></script>
+{% block scripts %}{% endblock %}
+</body>
+</html>

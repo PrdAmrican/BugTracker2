@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% from "macros.html" import severity_badge, status_badge, event_text %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<div class="d-flex flex-wrap justify-content-between align-items-center gap-2 mb-4">
+    <h1 class="h3 mb-0">Dashboard</h1>
+    <span class="text-body-secondary small">{{ total }} bug{{ 's' if total != 1 }} tracked in total</span>
+</div>
+
+<div class="row g-3 mb-4">
+    <div class="col-6 col-lg-3">
+        <a class="card stat-card h-100" href="{{ url_for('bugs.list', status='active') }}">
+            <div class="card-body">
+                <div class="stat-label">Active</div>
+                <div class="stat-value">{{ active }}</div>
+                <div class="stat-hint">open, needs info or in progress</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="card stat-card h-100 {{ 'stat-alert' if critical_active }}" href="{{ url_for('bugs.list', status='active', severity='critical') }}">
+            <div class="card-body">
+                <div class="stat-label">Critical &amp; active</div>
+                <div class="stat-value">{{ critical_active }}</div>
+                <div class="stat-hint">{{ 'needs attention' if critical_active else 'none right now' }}</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="card stat-card h-100" href="{{ url_for('bugs.list', sort='created', dir='desc') }}">
+            <div class="card-body">
+                <div class="stat-label">Reported</div>
+                <div class="stat-value">{{ reported_this_week }}</div>
+                <div class="stat-hint">in the last 7 days</div>
+            </div>
+        </a>
+    </div>
+    <div class="col-6 col-lg-3">
+        <a class="card stat-card h-100" href="{{ url_for('bugs.list', status='done', sort='updated') }}">
+            <div class="card-body">
+                <div class="stat-label">Resolved</div>
+                <div class="stat-value">{{ resolved_this_week }}</div>
+                <div class="stat-hint">in the last 7 days</div>
+            </div>
+        </a>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title mb-3">By status</h2>
+                {% if total %}
+                <div class="stacked-bar mb-3" role="img" aria-label="Bugs by status">
+                    {% for s in STATUSES %}{% set n = status_counts.get(s, 0) %}{% if n %}
+                    <a class="seg status-{{ s }}" style="width: {{ (n / total * 100)|round(2) }}%" href="{{ url_for('bugs.list', status=s) }}" title="{{ STATUS_LABELS[s] }}: {{ n }}"></a>
+                    {% endif %}{% endfor %}
+                </div>
+                <div class="d-flex flex-wrap gap-3 small">
+                    {% for s in STATUSES %}
+                    <a class="legend-item" href="{{ url_for('bugs.list', status=s) }}"><span class="dot status-{{ s }}"></span>{{ STATUS_LABELS[s] }} <strong>{{ status_counts.get(s, 0) }}</strong></a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-body-secondary mb-0">No bugs yet. <a href="{{ url_for('bugs.new') }}">Report the first one.</a></p>
+                {% endif %}
+            </div>
+        </div>
+
+        <div class="row g-4 mb-4">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h2 class="h6 card-title mb-3">Active bugs by severity</h2>
+                        {% set sev_max = (severity_active.values()|list + [1])|max %}
+                        {% for s in SEVERITIES|reverse %}{% set n = severity_active.get(s, 0) %}
+                        <a class="hbar-row" href="{{ url_for('bugs.list', status='active', severity=s) }}">
+                            <span class="hbar-label">{{ SEVERITY_LABELS[s] }}</span>
+                            <span class="hbar-track"><span class="hbar-fill sev-{{ s }}" style="width: {{ (n / sev_max * 100)|round(1) }}%"></span></span>
+                            <span class="hbar-value">{{ n }}</span>
+                        </a>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h2 class="h6 card-title mb-3">Active bugs by build</h2>
+                        {% if by_build %}
+                        {% set build_max = by_build[0][1] %}
+                        {% for build, n in by_build %}
+                        <a class="hbar-row" href="{{ url_for('bugs.list', status='active', build=build.id) }}">
+                            <span class="hbar-label text-truncate" title="{{ build.name }}">{{ build.name }}</span>
+                            <span class="hbar-track"><span class="hbar-fill bar-neutral" style="width: {{ (n / build_max * 100)|round(1) }}%"></span></span>
+                            <span class="hbar-value">{{ n }}</span>
+                        </a>
+                        {% endfor %}
+                        {% else %}
+                        <p class="text-body-secondary small mb-0">No active bugs have a SW build set.</p>
+                        {% endif %}
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="card-body">
+                <div class="d-flex justify-content-between align-items-center mb-2">
+                    <h2 class="h6 card-title mb-0">Assigned to me</h2>
+                    <a class="small" href="{{ url_for('bugs.list', assignee='me', status='active') }}">See all</a>
+                </div>
+                {% if my_bugs %}
+                <div class="list-group list-group-flush">
+                    {% for bug in my_bugs %}
+                    <a class="list-group-item list-group-item-action d-flex gap-2 align-items-center px-0" href="{{ url_for('bugs.detail', bug_id=bug.id) }}">
+                        <span class="text-body-secondary bug-id">#{{ bug.id }}</span>
+                        <span class="flex-grow-1 text-truncate">{{ bug.title }}</span>
+                        {{ severity_badge(bug.severity) }} {{ status_badge(bug.status) }}
+                    </a>
+                    {% endfor %}
+                </div>
+                {% else %}
+                <p class="text-body-secondary small mb-0">Nothing active is assigned to you.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card">
+            <div class="card-body">
+                <h2 class="h6 card-title mb-3">Recent activity</h2>
+                {% if recent_events %}
+                <ul class="activity list-unstyled mb-0">
+                    {% for e in recent_events %}
+                    <li>
+                        <div>{{ event_text(e, with_bug=true) }}</div>
+                        <div class="small text-body-secondary">{{ e.created_at|localtime('relative') }}</div>
+                    </li>
+                    {% endfor %}
+                </ul>
+                {% else %}
+                <p class="text-body-secondary small mb-0">Changes to bugs will show up here.</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}

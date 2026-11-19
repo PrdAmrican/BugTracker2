@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf %}
+{% block title %}Set up{% endblock %}
+{% block content %}
+<div class="auth-card mx-auto mt-5">
+    <div class="text-center mb-4">
+        <i class="bi bi-bug-fill text-danger fs-1"></i>
+        <h1 class="h4 mt-2">Create the admin account</h1>
+        <p class="text-body-secondary small mb-0">
+            {% if existing_testers %}
+            Your existing data ({{ existing_testers }} tester{{ 's' if existing_testers != 1 }}) has been upgraded to v{{ APP_VERSION }}.
+            Bug Tracker now has sign-in, so set up an admin to continue. If you use the email of an existing tester, that record becomes the admin.
+            {% else %}
+            The admin can add testers, manage dropdown values and run backups.
+            {% endif %}
+        </p>
+    </div>
+    <div class="card shadow-sm">
+        <div class="card-body p-4">
+            <form method="post">
+                {{ csrf() }}
+                <div class="mb-3">
+                    <label for="name" class="form-label">Your name</label>
+                    <input class="form-control" id="name" name="name" value="{{ form.name }}" required autofocus>
+                </div>
+                <div class="mb-3">
+                    <label for="email" class="form-label">Email</label>
+                    <input type="email" class="form-control" id="email" name="email" value="{{ form.email }}" required autocomplete="username">
+                </div>
+                <div class="mb-3">
+                    <label for="password" class="form-label">Password</label>
+                    <input type="password" class="form-control" id="password" name="password" minlength="{{ min_length }}" required autocomplete="new-password">
+                    <div class="form-text">At least {{ min_length }} characters.</div>
+                </div>
+                <div class="mb-3">
+                    <label for="confirm" class="form-label">Confirm password</label>
+                    <input type="password" class="form-control" id="confirm" name="confirm" minlength="{{ min_length }}" required autocomplete="new-password">
+                </div>
+                <button class="btn btn-primary w-100">Create admin and continue</button>
+            </form>
+        </div>
+    </div>
+</div>
+{% endblock %}

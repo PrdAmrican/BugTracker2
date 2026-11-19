@@ -1,0 +1,91 @@
+{% extends "base.html" %}
+{% block title %}About{% endblock %}
+{% block content %}
+<div class="d-flex align-items-center gap-3 mb-4">
+    <i class="bi bi-bug-fill text-danger display-6"></i>
+    <div>
+        <h1 class="h3 mb-0">Beta Tester Bug Tracker</h1>
+        <div class="text-body-secondary">Version {{ version }}</div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <div class="col-lg-7">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title">What it is</h2>
+                <p class="mb-0">A small, self-hosted bug tracker for beta-testing programs: testers report bugs with the device, software build and mode they were using, attach screenshots and logs, discuss them in comments, and follow each bug from <em>Open</em> to <em>Fixed in build</em>. Everything is stored in a single SQLite database on your own server.</p>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title">Creator</h2>
+                <p class="mb-2">Created by <a href="{{ author_url }}" target="_blank" rel="noopener"><strong>{{ author }}</strong></a>.</p>
+                <p class="mb-0 text-body-secondary small">Copyright &copy; 2026 {{ author }}.</p>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title">License</h2>
+                <p>This program is free software: you can redistribute it and/or modify it under the terms of the <strong>GNU Affero General Public License</strong> as published by the Free Software Foundation, either version 3 of the License, or (at your option) any later version.</p>
+                <p>This program is distributed in the hope that it will be useful, but <strong>without any warranty</strong>; without even the implied warranty of merchantability or fitness for a particular purpose. See the GNU Affero General Public License for more details.</p>
+                <p class="small text-body-secondary">If you run a modified version of this program for other people over a network, the AGPL requires you to offer them your modified source code. Set <code>BUGTRACKER_SOURCE_URL</code> so the source link below and in the footer points to your copy.</p>
+                <div class="d-flex flex-wrap gap-2">
+                    <a class="btn btn-sm btn-outline-primary" href="{{ url_for('about.license_text') }}" target="_blank"><i class="bi bi-file-text"></i> Full license text</a>
+                    <a class="btn btn-sm btn-outline-secondary" href="https://www.gnu.org/licenses/agpl-3.0.html" target="_blank" rel="noopener"><i class="bi bi-box-arrow-up-right"></i> About the GNU AGPL</a>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-lg-5">
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title">Source code</h2>
+                <p class="small text-body-secondary">The complete source for the version running here:</p>
+                <a class="btn btn-sm btn-dark" href="{{ SOURCE_URL }}" target="_blank" rel="noopener"><i class="bi bi-github"></i> {{ SOURCE_URL|replace('https://', '') }}</a>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title">Details</h2>
+                <dl class="facts mb-0">
+                    <dt>Version</dt><dd>{{ version }}</dd>
+                    <dt>License</dt><dd><code>{{ license_id }}</code></dd>
+                    <dt>Creator</dt><dd>{{ author }}</dd>
+                </dl>
+            </div>
+        </div>
+
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title">Built with</h2>
+                <ul class="list-unstyled small mb-0">
+                    {% for c in components %}
+                    <li class="d-flex justify-content-between py-1 border-bottom">
+                        <a href="{{ c.url }}" target="_blank" rel="noopener">{{ c.name }}</a>
+                        <span class="text-body-secondary">{% if c.version %}{{ c.version }} · {% endif %}{{ c.license }}</span>
+                    </li>
+                    {% endfor %}
+                </ul>
+            </div>
+        </div>
+
+        {% if system %}
+        <div class="card mb-4">
+            <div class="card-body">
+                <h2 class="h6 card-title">System <span class="badge text-bg-secondary fw-normal">admins only</span></h2>
+                <dl class="facts small mb-0">
+                    {% for key, value in system.items() %}
+                    <dt>{{ key }}</dt><dd>{{ value }}</dd>
+                    {% endfor %}
+                </dl>
+            </div>
+        </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% from "macros.html" import csrf, options %}
+{% block title %}{{ 'Edit #' ~ bug.id if bug else 'Report a bug' }}{% endblock %}
+{% block content %}
+{% if bug %}
+<nav aria-label="breadcrumb"><ol class="breadcrumb small">
+    <li class="breadcrumb-item"><a href="{{ url_for('bugs.list') }}">Bugs</a></li>
+    <li class="breadcrumb-item"><a href="{{ url_for('bugs.detail', bug_id=bug.id) }}">#{{ bug.id }}</a></li>
+    <li class="breadcrumb-item active">Edit</li>
+</ol></nav>
+{% endif %}
+<h1 class="h3 mb-4">{{ 'Edit bug #' ~ bug.id if bug else 'Report a bug' }}</h1>
+
+<form method="post" enctype="multipart/form-data" class="row g-4">
+    {{ csrf() }}
+    <div class="col-lg-8">
+        <div class="card"><div class="card-body">
+            <div class="mb-3">
+                <label for="title" class="form-label">Title <span class="text-danger">*</span></label>
+                <input type="text" name="title" id="title" class="form-control" required maxlength="200"
+                       value="{{ form.title or '' }}" placeholder="Short summary, e.g. “App freezes when rotating on the camera screen”" {{ 'autofocus' if not bug }}>
+            </div>
+            <div class="mb-3">
+                <label for="description" class="form-label">Description</label>
+                <textarea name="description" id="description" class="form-control font-mono-sm" rows="12"
+                          placeholder="Steps to reproduce:&#10;1. &#10;2. &#10;&#10;Expected:&#10;&#10;Actual:">{{ form.description or '' }}</textarea>
+                <div class="form-text">Include steps to reproduce, what you expected and what happened instead.</div>
+            </div>
+            {% if not bug %}
+            <div>
+                <label for="files" class="form-label">Screenshots, recordings or logs</label>
+                <input type="file" name="files" id="files" class="form-control" multiple>
+                <div class="form-text">You can also paste a screenshot (Ctrl/⌘+V) anywhere on this page, or add files later.</div>
+                <div id="paste-preview" class="d-flex flex-wrap gap-2 mt-2"></div>
+            </div>
+            {% endif %}
+        </div></div>
+    </div>
+
+    <div class="col-lg-4">
+        <div class="card"><div class="card-body">
+            <div class="row g-3">
+                <div class="{{ 'col-6' if bug else 'col-12' }}">
+                    <label for="severity" class="form-label">Severity</label>
+                    <select name="severity" id="severity" class="form-select">
+                        {% for s in SEVERITIES %}
+                        <option value="{{ s }}" {{ 'selected' if (form.severity or 'medium') == s }}>{{ SEVERITY_LABELS[s] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% if bug %}
+                <div class="col-6">
+                    <label for="status" class="form-label">Status</label>
+                    <select name="status" id="status" class="form-select">
+                        {% for s in STATUSES %}
+                        <option value="{{ s }}" {{ 'selected' if form.status == s }}>{{ STATUS_LABELS[s] }}</option>
+                        {% endfor %}
+                    </select>
+                </div>
+                {% endif %}
+
+                {% for field, label, items, api in [('device', 'Device', devices, 'devices'), ('sw_build', 'SW build', sw_builds, 'sw_builds'), ('mode', 'Mode', modes, 'modes')] %}
+                <div class="col-12">
+                    <label for="{{ field }}" class="form-label">{{ label }}</label>
+                    <div class="input-group">
+                        <select name="{{ field }}" id="{{ field }}" class="form-select" data-lookup="{{ api }}">
+                            {{ options(items, form.get(field, ''), '– none –') }}
+                        </select>
+                        <button type="button" class="btn btn-outline-secondary" data-add-lookup="{{ field }}" data-api="{{ url_for('bugs.api_add_lookup', kind=api) }}" title="Add a new {{ label|lower }}" aria-label="Add a new {{ label|lower }}">
+                            <i class="bi bi-plus-lg"></i>
+                        </button>
+                    </div>
+                </div>
+                {% endfor %}
+
+                {% if bug %}
+                <div class="col-12">
+                    <label for="fixed_in_build" class="form-label">Fixed in build</label>
+                    <select name="fixed_in_build" id="fixed_in_build" class="form-select" data-lookup="sw_builds">
+                        {{ options(sw_builds, form.get('fixed_in_build', ''), '– not fixed yet –') }}
+                    </select>
+                </div>
+                {% endif %}
+
+                <div class="col-12">
+                    <label for="tg" class="form-label">TG</label>
+                    <input type="text" name="tg" id="tg" class="form-control" maxlength="120" value="{{ form.tg or '' }}">
+                </div>
+                <div class="col-12">
+                    <label for="reported_by" class="form-label">Reported by</label>
+                    <select name="reported_by" id="reported_by" class="form-select">
+                        {{ options(testers, form.get('reported_by', ''), '– unknown –') }}
+                    </select>
+                </div>
+                <div class="col-12">
+                    <label for="assigned_to" class="form-label">Assigned to</label>
+                    <select name="assigned_to" id="assigned_to" class="form-select">
+                        {{ options(testers, form.get('assigned_to', ''), '– unassigned –') }}
+                    </select>
+                </div>
+            </div>
+        </div></div>
+
+        <div class="d-flex gap-2 mt-3">
+            <button type="submit" class="btn btn-primary flex-grow-1">
+                <i class="bi bi-check-lg"></i> {{ 'Save changes' if bug else 'Submit bug' }}
+            </button>
+            <a href="{{ url_for('bugs.detail', bug_id=bug.id) if bug else url_for('bugs.list') }}" class="btn btn-outline-secondary">Cancel</a>
+        </div>
+    </div>
+</form>
+
+<div class="modal fade" id="lookup-modal" tabindex="-1" aria-labelledby="lookup-modal-title" aria-hidden="true">
+    <div class="modal-dialog modal-dialog-centered modal-sm">
+        <form class="modal-content" id="lookup-form">
+            <div class="modal-header">
+                <h2 class="modal-title h6" id="lookup-modal-title">Add new</h2>
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+            <div class="modal-body">
+                <input class="form-control" id="lookup-name" required maxlength="120" autocomplete="off">
+                <div class="invalid-feedback" id="lookup-error"></div>
+            </div>
+            <div class="modal-footer">
+                <button type="button" class="btn btn-outline-secondary btn-sm" data-bs-dismiss="modal">Cancel</button>
+                <button class="btn btn-primary btn-sm">Add</button>
+            </div>
+        </form>
+    </div>
+</div>
+{% endblock %}

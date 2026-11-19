@@ -1,0 +1,25 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+venv/
+.venv/
+
+# Data (database, uploads, generated secret, automatic snapshots)
+*.db
+uploads/
+backups/
+logs/
+.secret_key
+
+# Exported backup data
+budata/
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+Thumbs.db
+.DS_Store
